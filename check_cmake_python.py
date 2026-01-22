@@ -39,10 +39,26 @@ def check_python_detection():
         print("  -> Initial guess is invalid (not found or is dir). Searching...")
         
         candidates = list(Path(libdir).glob(f"libpython{python_version}*.so*"))
-        print(f"  -> Shared lib candidates in {libdir}: {[str(c) for c in candidates]}")
-        
         static_candidates = list(Path(libdir).glob(f"libpython{python_version}*.a"))
-        print(f"  -> Static lib candidates in {libdir}: {[str(c) for c in static_candidates]}")
+
+        # If not found in libdir, try looking in lib64 (sometimes libdir is lib but real libs are in lib64)
+        if not candidates and not static_candidates:
+             parent = Path(libdir).parent
+             if (parent / "lib64").exists():
+                 print(f"  -> Checking lib64: {parent}/lib64")
+                 candidates.extend(list((parent / "lib64").glob(f"libpython{python_version}*.so*")))
+                 static_candidates.extend(list((parent / "lib64").glob(f"libpython{python_version}*.a")))
+         
+        # Also try looking in python3.X/config-... dir inside libdir
+        if not candidates and not static_candidates:
+             config_dirs = list(Path(libdir).glob(f"python{python_version}*/config*"))
+             print(f"  -> Checking config dirs: {[str(d) for d in config_dirs]}")
+             for cdir in config_dirs:
+                  candidates.extend(list(cdir.glob(f"libpython{python_version}*.so*")))
+                  static_candidates.extend(list(cdir.glob(f"libpython{python_version}*.a")))
+
+        print(f"  -> Shared lib candidates: {[str(c) for c in candidates]}")
+        print(f"  -> Static lib candidates: {[str(c) for c in static_candidates]}")
         
         if candidates:
             final_lib = str(candidates[0])

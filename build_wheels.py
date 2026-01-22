@@ -93,6 +93,21 @@ def compile_pythonocc(python_version, venv_path, src_dir, occt_install_dir, buil
          # Also try static lib if shared is not found, CMake might accept it.
          static_candidates = list(Path(libdir).glob(f"libpython{python_version}*.a"))
          
+         # If not found in libdir, try looking in lib64 (sometimes libdir is lib but real libs are in lib64)
+         if not candidates and not static_candidates:
+             parent = Path(libdir).parent
+             if (parent / "lib64").exists():
+                 candidates.extend(list((parent / "lib64").glob(f"libpython{python_version}*.so*")))
+                 static_candidates.extend(list((parent / "lib64").glob(f"libpython{python_version}*.a")))
+         
+         # Also try looking in python3.X/config-... dir inside libdir
+         # e.g. /usr/lib64/python3.11/config-3.11-x86_64-linux-gnu/libpython3.11.a
+         if not candidates and not static_candidates:
+             config_dirs = list(Path(libdir).glob(f"python{python_version}*/config*"))
+             for cdir in config_dirs:
+                  candidates.extend(list(cdir.glob(f"libpython{python_version}*.so*")))
+                  static_candidates.extend(list(cdir.glob(f"libpython{python_version}*.a")))
+
          if candidates:
              python_lib = str(candidates[0])
          elif static_candidates:
