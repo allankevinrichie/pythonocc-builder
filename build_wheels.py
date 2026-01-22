@@ -76,7 +76,7 @@ def compile_pythonocc(python_version, venv_path, src_dir, occt_install_dir, buil
     
     # Fallback if the specific .so path doesn't exist (sometimes LDLIBRARY is just the name)
     # AND sometimes sysconfig reports a static lib (.a) but we need shared, or it reports nothing useful.
-    if not os.path.exists(python_lib):
+    if not os.path.exists(python_lib) or os.path.isdir(python_lib):
          # Try just LIBDIR, but CMake expects a FILE path for PYTHON_LIBRARY if we want to be explicit.
          # However, if we give a directory, FindPython might get confused or treat it as a lib path search dir.
          # Let's try to be smarter.
@@ -86,25 +86,31 @@ def compile_pythonocc(python_version, venv_path, src_dir, occt_install_dir, buil
          ).strip()
          
          # Try to find libpython*.so in libdir
-         candidates = list(Path(libdir).glob("libpython*.so*"))
+         # In manylinux, libpythonX.Y.so usually exists in /usr/lib64 or /usr/local/lib or /opt/python/.../lib
+         # We search recursively? No, just in libdir.
+         candidates = list(Path(libdir).glob(f"libpython{python_version}*.so*"))
+         
+         # Also try static lib if shared is not found, CMake might accept it.
+         static_candidates = list(Path(libdir).glob(f"libpython{python_version}*.a"))
+         
          if candidates:
              python_lib = str(candidates[0])
+         elif static_candidates:
+             python_lib = str(static_candidates[0])
          else:
              # If we can't find it, maybe we are on a static python build (manylinux often is).
              # But pythonocc needs to link against something? 
              # Actually, for extension modules, we shouldn't link against libpython on Linux 
              # (symbols are exported by the executable).
              # But FindPython3 module insists on finding it if Development component is requested.
-             # We can try to point it to the static lib if shared is missing.
-             static_lib = subprocess.check_output(
-                [str(python_exe), "-c", "import sysconfig; import os; print(os.path.join(sysconfig.get_config_var('LIBDIR'), sysconfig.get_config_var('LIBRARY')))"],
-                text=True
-             ).strip()
-             if os.path.exists(static_lib):
-                 python_lib = static_lib
-             else:
-                 # Last resort: just use the dir and hope CMake is smart enough (it wasn't before)
-                 python_lib = libdir
+             
+             # IMPORTANT: On manylinux, we might not have a shared libpython.
+             # We can try to trick CMake by not setting PYTHON_LIBRARY and let it find what it can,
+             # OR we point it to the static lib if we found it.
+             
+             # If we failed to find any lib file, let's try to find it in standard system paths
+             # or just unset python_lib so we don't pass a directory as a file.
+             pass
 
     build_dir = Path(build_base_dir) / f"pythonocc-{python_version}"
     install_dir = Path(install_base_dir) / f"pythonocc-{python_version}"
@@ -125,9 +131,13 @@ def compile_pythonocc(python_version, venv_path, src_dir, occt_install_dir, buil
         "-DPython3_FIND_STRATEGY=LOCATION", 
         f"-DPYTHON_EXECUTABLE={python_exe}",
         f"-DPYTHON_INCLUDE_DIR={python_include}",
-        f"-DPYTHON_LIBRARY={python_lib}",
         f"-DPYTHON_INCLUDE_DIRS={python_include};{numpy_include}"
     ]
+    
+    # Only add PYTHON_LIBRARY if it points to a file. 
+    # If it points to a dir or doesn't exist, passing it might confuse CMake.
+    if os.path.exists(python_lib) and os.path.isfile(python_lib):
+        cmake_cmd.append(f"-DPYTHON_LIBRARY={python_lib}")
     
     # Set CPLUS_INCLUDE_PATH for numpy headers during make
     env = os.environ.copy()
