@@ -49,7 +49,7 @@ jobs:
         env:
           # Linux Configuration
           CIBW_BEFORE_ALL_LINUX: >
-            yum install -y python3 wget git cmake libX11-devel libXext-devel libXt-devel libXi-devel libXmu-devel mesa-libGL-devel mesa-libGLU-devel pcre2-devel fontconfig-devel &&
+            yum install -y wget git cmake libX11-devel libXext-devel libXt-devel libXi-devel libXmu-devel mesa-libGL-devel mesa-libGLU-devel pcre2-devel fontconfig-devel &&
             python3 build_3rdparty.py --src-dir src --install-dir /host/install --build-dir build
           CIBW_ENVIRONMENT_LINUX: >
             OCCT_INCLUDE_DIR="/host/install/occt/include/opencascade"
