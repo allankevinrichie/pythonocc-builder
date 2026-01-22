@@ -77,6 +77,7 @@ def compile_pythonocc(python_version, venv_path, src_dir, occt_install_dir, buil
         f"-DSWIG_EXECUTABLE={occt_install_dir}/../swig/bin/swig", # Assuming swig is in ../swig relative to occt
         "-DCMAKE_BUILD_TYPE=Release",
         f"-DPYTHON_EXECUTABLE={python_exe}",
+        f"-DPYTHON_INCLUDE_DIR={python_include}",
         f"-DPYTHON_INCLUDE_DIRS={python_include};{numpy_include}"
     ]
     
