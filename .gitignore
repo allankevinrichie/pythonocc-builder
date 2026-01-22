@@ -1,0 +1,13 @@
+# Ignore build artifacts and temporary files
+build/
+install/
+work_wheels/
+wheels/
+wheels_raw/
+wheels_fixed/
+.venv*/
+__pycache__/
+*.pyc
+*.whl
+.DS_Store
+src/
