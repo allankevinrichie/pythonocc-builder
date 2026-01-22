@@ -35,7 +35,13 @@ def create_venv(python_version, venv_path):
     run_command(["uv", "venv", str(venv_path), "--python", python_version])
     
     # Install dependencies
-    pip_cmd = [str(Path(venv_path) / "bin" / "uv"), "pip", "install", "numpy", "wheel", "build", "auditwheel"]
+    # uv is not installed inside the venv by default when using 'uv venv'.
+    # We should use the global 'uv pip' command and point it to the venv python.
+    # Or simply activate the venv, but subprocess doesn't support 'activate'.
+    # Better approach: 'uv pip install --python <path_to_venv_python> ...'
+    
+    python_exe = Path(venv_path) / "bin" / "python"
+    pip_cmd = ["uv", "pip", "install", "--python", str(python_exe), "numpy", "wheel", "build", "auditwheel"]
     run_command(pip_cmd)
 
 def compile_pythonocc(python_version, venv_path, src_dir, occt_install_dir, build_base_dir, install_base_dir):
