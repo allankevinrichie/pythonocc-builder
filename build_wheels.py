@@ -32,7 +32,7 @@ def ensure_uv():
 def create_venv(python_version, venv_path):
     """Create a virtual environment using uv."""
     print(f"Creating virtual environment for Python {python_version} at {venv_path}...")
-    run_command(["uv", "venv", venv_path, "--python", python_version])
+    run_command(["uv", "venv", str(venv_path), "--python", python_version])
     
     # Install dependencies
     pip_cmd = [str(Path(venv_path) / "bin" / "uv"), "pip", "install", "numpy", "wheel", "build", "auditwheel"]
