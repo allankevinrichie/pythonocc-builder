@@ -34,7 +34,7 @@ jobs:
         uses: lukka/run-vcpkg@v11
         with:
           vcpkgDirectory: ${{ github.workspace }}/vcpkg
-          vcpkgGitCommitId: '2024.04.26' # Use tag name directly
+          vcpkgGitCommitId: '66c0373dc7fca549e5803087b9487edfe3aca0a1'
           packages: 'tcl:x64-windows tk:x64-windows freetype:x64-windows swig:x64-windows'
 
       - name: Build dependencies (Windows)
