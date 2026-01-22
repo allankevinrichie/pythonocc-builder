@@ -1,0 +1,6 @@
+[submodule "src/occt"]
+	path = src/occt
+	url = https://github.com/Open-Cascade-SAS/OCCT.git
+[submodule "src/pythonocc-core"]
+	path = src/pythonocc-core
+	url = https://github.com/tpaviot/pythonocc-core.git

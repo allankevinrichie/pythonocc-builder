@@ -158,6 +158,13 @@ def main():
     work_dir.mkdir(parents=True, exist_ok=True)
     output_dir.mkdir(parents=True, exist_ok=True)
 
+    # 0. Build 3rd-party dependencies and OCCT
+    print("\n=== Building 3rd-party dependencies and OCCT ===")
+    # Run build_3rdparty.py first
+    # Assume it's in the same directory as this script
+    build_3rdparty_script = Path(__file__).parent / "build_3rdparty.py"
+    run_command([sys.executable, str(build_3rdparty_script), "--src-dir", str(src_dir.parent), "--install-dir", str(occt_install_dir.parent)])
+
     for py_ver in args.py_versions:
         print(f"\n=== Processing Python {py_ver} ===")
         venv_path = work_dir / f"venv-{py_ver}"
