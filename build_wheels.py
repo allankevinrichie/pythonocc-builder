@@ -65,6 +65,25 @@ def compile_pythonocc(python_version, venv_path, src_dir, occt_install_dir, buil
         text=True
     ).strip()
 
+    # Get python library
+    # We try to find the shared library.
+    # On manylinux, it might be in /opt/python/cp310-cp310/lib/libpython3.10.so or similar.
+    # Or in standard locations.
+    python_lib = subprocess.check_output(
+        [str(python_exe), "-c", "import sysconfig; import os; print(os.path.join(sysconfig.get_config_var('LIBDIR'), sysconfig.get_config_var('LDLIBRARY')))"],
+        text=True
+    ).strip()
+    
+    # Fallback if the specific .so path doesn't exist (sometimes LDLIBRARY is just the name)
+    if not os.path.exists(python_lib):
+         # Try just LIBDIR
+         python_lib_dir = subprocess.check_output(
+            [str(python_exe), "-c", "import sysconfig; print(sysconfig.get_config_var('LIBDIR'))"],
+            text=True
+         ).strip()
+         # Let CMake find it in that dir
+         python_lib = python_lib_dir
+
     build_dir = Path(build_base_dir) / f"pythonocc-{python_version}"
     install_dir = Path(install_base_dir) / f"pythonocc-{python_version}"
     
@@ -82,6 +101,7 @@ def compile_pythonocc(python_version, venv_path, src_dir, occt_install_dir, buil
         "-DCMAKE_BUILD_TYPE=Release",
         f"-DPYTHON_EXECUTABLE={python_exe}",
         f"-DPYTHON_INCLUDE_DIR={python_include}",
+        f"-DPYTHON_LIBRARY={python_lib}",
         f"-DPYTHON_INCLUDE_DIRS={python_include};{numpy_include}"
     ]
     
