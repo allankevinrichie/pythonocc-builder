@@ -10,6 +10,7 @@ from pathlib import Path
 def run_command(cmd, cwd=None, env=None, shell=False):
     """Run a shell command and handle errors."""
     print(f"Running: {cmd if isinstance(cmd, str) else ' '.join(cmd)}")
+    sys.stdout.flush()
     try:
         subprocess.check_call(cmd, cwd=cwd, env=env, shell=shell)
     except subprocess.CalledProcessError as e:

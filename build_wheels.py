@@ -10,10 +10,14 @@ from pathlib import Path
 def run_command(cmd, cwd=None, env=None, shell=False):
     """Run a shell command and handle errors."""
     print(f"Running: {cmd if isinstance(cmd, str) else ' '.join(cmd)}")
+    sys.stdout.flush()
     try:
         subprocess.check_call(cmd, cwd=cwd, env=env, shell=shell)
     except subprocess.CalledProcessError as e:
         print(f"Error running command: {e}")
+        # If output was captured, printing it here would be useful.
+        # But check_call streams to stdout/stderr by default, so user should have seen it.
+        # We can try to provide more context if needed.
         sys.exit(1)
 
 def ensure_uv():
