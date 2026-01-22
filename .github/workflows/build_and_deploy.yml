@@ -33,18 +33,14 @@ jobs:
 
       - name: Build Wheels
         run: |
-          # The container already has python3.11 etc. installed in /opt/python/
-          # But our script expects 'python3' or 'python3.11' command.
-          # manylinux images have python at /opt/python/cp311-cp311/bin/python etc.
-          # We'll let the script create venvs using 'uv' which can download python versions if needed,
-          # OR we can just use the system python to run the script.
-          
-          # Use system python3 to run the build script
-          # The script itself uses 'uv' to manage build environments.
-          
-          # We need to make sure 'python3' is available. manylinux image usually has it.
-          # If not, we can use one from /opt/python
+          # ... (previous setup)
           export PATH=/opt/python/cp311-cp311/bin:$PATH
+          
+          # QUICK TEST: Verify Python detection logic before running full build
+          echo "=== Running Quick Python Detection Test ==="
+          # Test with Python 3.10 (which failed previously)
+          /opt/python/cp310-cp310/bin/python3 check_cmake_python.py
+          echo "==========================================="
           
           python3 build_wheels.py --py-versions 3.10 3.11 3.12 3.13 --plat-tag manylinux_2_28_x86_64
 
