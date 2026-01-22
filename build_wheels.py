@@ -75,14 +75,36 @@ def compile_pythonocc(python_version, venv_path, src_dir, occt_install_dir, buil
     ).strip()
     
     # Fallback if the specific .so path doesn't exist (sometimes LDLIBRARY is just the name)
+    # AND sometimes sysconfig reports a static lib (.a) but we need shared, or it reports nothing useful.
     if not os.path.exists(python_lib):
-         # Try just LIBDIR
-         python_lib_dir = subprocess.check_output(
+         # Try just LIBDIR, but CMake expects a FILE path for PYTHON_LIBRARY if we want to be explicit.
+         # However, if we give a directory, FindPython might get confused or treat it as a lib path search dir.
+         # Let's try to be smarter.
+         libdir = subprocess.check_output(
             [str(python_exe), "-c", "import sysconfig; print(sysconfig.get_config_var('LIBDIR'))"],
             text=True
          ).strip()
-         # Let CMake find it in that dir
-         python_lib = python_lib_dir
+         
+         # Try to find libpython*.so in libdir
+         candidates = list(Path(libdir).glob("libpython*.so*"))
+         if candidates:
+             python_lib = str(candidates[0])
+         else:
+             # If we can't find it, maybe we are on a static python build (manylinux often is).
+             # But pythonocc needs to link against something? 
+             # Actually, for extension modules, we shouldn't link against libpython on Linux 
+             # (symbols are exported by the executable).
+             # But FindPython3 module insists on finding it if Development component is requested.
+             # We can try to point it to the static lib if shared is missing.
+             static_lib = subprocess.check_output(
+                [str(python_exe), "-c", "import sysconfig; import os; print(os.path.join(sysconfig.get_config_var('LIBDIR'), sysconfig.get_config_var('LIBRARY')))"],
+                text=True
+             ).strip()
+             if os.path.exists(static_lib):
+                 python_lib = static_lib
+             else:
+                 # Last resort: just use the dir and hope CMake is smart enough (it wasn't before)
+                 python_lib = libdir
 
     build_dir = Path(build_base_dir) / f"pythonocc-{python_version}"
     install_dir = Path(install_base_dir) / f"pythonocc-{python_version}"
@@ -99,6 +121,8 @@ def compile_pythonocc(python_version, venv_path, src_dir, occt_install_dir, buil
         f"-DPYTHONOCC_INSTALL_DIRECTORY={install_dir}",
         f"-DSWIG_EXECUTABLE={occt_install_dir}/../swig/bin/swig", # Assuming swig is in ../swig relative to occt
         "-DCMAKE_BUILD_TYPE=Release",
+        # Force FindPython3 to use the artifacts from our specified environment
+        "-DPython3_FIND_STRATEGY=LOCATION", 
         f"-DPYTHON_EXECUTABLE={python_exe}",
         f"-DPYTHON_INCLUDE_DIR={python_include}",
         f"-DPYTHON_LIBRARY={python_lib}",
