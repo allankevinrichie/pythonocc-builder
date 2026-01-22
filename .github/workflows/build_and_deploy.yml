@@ -25,7 +25,8 @@ jobs:
       - name: Build dependencies (Linux)
         if: runner.os == 'Linux'
         run: |
-          sudo yum install -y wget git cmake libX11-devel libXext-devel libXt-devel libXi-devel libXmu-devel mesa-libGL-devel mesa-libGLU-devel pcre2-devel fontconfig-devel
+          sudo apt-get update
+          sudo apt-get install -y wget git cmake libx11-dev libxext-dev libxt-dev libxi-dev libxmu-dev libgl1-mesa-dev libglu1-mesa-dev libpcre2-dev libfontconfig1-dev
           python3 build_3rdparty.py --src-dir src --install-dir /host/install --build-dir build
 
       - name: Setup vcpkg (Windows)
