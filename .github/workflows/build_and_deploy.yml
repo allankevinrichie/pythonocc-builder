@@ -1,0 +1,114 @@
+name: Build and Deploy Wheels
+
+on:
+  push:
+    branches:
+      - master
+    paths-ignore:
+      - 'README.md'
+      - '.gitignore'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: quay.io/pypa/manylinux_2_28_x86_64:latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install System Dependencies
+        run: |
+          yum install -y wget git cmake libX11-devel libXext-devel libXt-devel libXi-devel libXmu-devel mesa-libGL-devel mesa-libGLU-devel
+          # Ensure patchelf is installed (auditwheel needs it)
+          yum install -y patchelf
+
+      - name: Install uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Build Wheels
+        run: |
+          # The container already has python3.11 etc. installed in /opt/python/
+          # But our script expects 'python3' or 'python3.11' command.
+          # manylinux images have python at /opt/python/cp311-cp311/bin/python etc.
+          # We'll let the script create venvs using 'uv' which can download python versions if needed,
+          # OR we can just use the system python to run the script.
+          
+          # Use system python3 to run the build script
+          # The script itself uses 'uv' to manage build environments.
+          
+          # We need to make sure 'python3' is available. manylinux image usually has it.
+          # If not, we can use one from /opt/python
+          export PATH=/opt/python/cp311-cp311/bin:$PATH
+          
+          python3 build_wheels.py --py-versions 3.10 3.11 3.12 3.13 --plat-tag manylinux_2_28_x86_64
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheels
+          path: wheels/*.whl
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Checkout manylinux branch
+        uses: actions/checkout@v4
+        with:
+          ref: manylinux_2_28_x86_64
+          path: deploy_branch
+
+      - name: Download Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: wheels
+          path: new_wheels
+
+      - name: Update Wheels and Index
+        run: |
+          cd deploy_branch
+          
+          # Create pythonocc-core dir if not exists
+          mkdir -p pythonocc-core
+          
+          # Move new wheels to pythonocc-core, overwriting existing ones
+          cp ../new_wheels/*.whl pythonocc-core/
+          
+          # Generate Index HTML
+          echo "<!DOCTYPE html><html><body>" > pythonocc-core/index.html
+          # Sort files for better readability
+          for f in $(ls pythonocc-core/*.whl | sort); do
+            filename=$(basename "$f")
+            echo "<a href=\"$filename\">$filename</a><br>" >> pythonocc-core/index.html
+          done
+          echo "</body></html>" >> pythonocc-core/index.html
+          
+          # Generate Root Index HTML
+          echo "<!DOCTYPE html><html><body>" > index.html
+          echo '<a href="pythonocc-core/">pythonocc-core</a><br>' >> index.html
+          echo "</body></html>" >> index.html
+
+      - name: Commit and Push
+        run: |
+          cd deploy_branch
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          git add .
+          
+          # Commit if changes exist
+          if git diff --staged --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "Auto-deploy wheels from build ${{ github.run_number }}"
+            git push origin manylinux_2_28_x86_64
+          fi
