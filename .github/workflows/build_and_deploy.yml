@@ -50,13 +50,13 @@ jobs:
           # Linux Configuration
           CIBW_BEFORE_ALL_LINUX: >
             yum install -y wget git cmake libX11-devel libXext-devel libXt-devel libXi-devel libXmu-devel mesa-libGL-devel mesa-libGLU-devel pcre2-devel fontconfig-devel &&
-            python3 build_3rdparty.py --src-dir src --install-dir /host/install --build-dir build
+            python3 build_3rdparty.py --src-dir src --install-dir install --build-dir build
           CIBW_ENVIRONMENT_LINUX: >
-            OCCT_INCLUDE_DIR="/host/install/occt/include/opencascade"
-            OCCT_LIBRARY_DIR="/host/install/occt/lib"
-            LD_LIBRARY_PATH="/host/install/occt/lib:/host/install/tcltk/lib:/host/install/freetype/lib:$LD_LIBRARY_PATH"
-            SKBUILD_CMAKE_DEFINE="OCCT_INCLUDE_DIR=/host/install/occt/include/opencascade;OCCT_LIBRARY_DIR=/host/install/occt/lib;SWIG_EXECUTABLE=/host/install/swig/bin/swig"
-          CIBW_REPAIR_WHEEL_COMMAND_LINUX: "export LD_LIBRARY_PATH=/host/install/occt/lib:/host/install/tcltk/lib:/host/install/freetype/lib:$LD_LIBRARY_PATH && auditwheel repair -w {dest_dir} {wheel}"
+            OCCT_INCLUDE_DIR="install/occt/include/opencascade"
+            OCCT_LIBRARY_DIR="install/occt/lib"
+            LD_LIBRARY_PATH="install/occt/lib:install/tcltk/lib:install/freetype/lib:$LD_LIBRARY_PATH"
+            SKBUILD_CMAKE_DEFINE="OCCT_INCLUDE_DIR=install/occt/include/opencascade;OCCT_LIBRARY_DIR=install/occt/lib;SWIG_EXECUTABLE=install/swig/bin/swig"
+          CIBW_REPAIR_WHEEL_COMMAND_LINUX: "export LD_LIBRARY_PATH=install/occt/lib:install/tcltk/lib:install/freetype/lib:$LD_LIBRARY_PATH && auditwheel repair -w {dest_dir} {wheel}"
 
           # Windows Configuration
           CIBW_ENVIRONMENT_WINDOWS: >
