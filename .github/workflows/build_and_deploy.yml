@@ -15,37 +15,58 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest]
+        os: [ubuntu-latest, windows-latest]
 
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
 
+      - name: Build dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo yum install -y wget git cmake libX11-devel libXext-devel libXt-devel libXi-devel libXmu-devel mesa-libGL-devel mesa-libGLU-devel pcre2-devel fontconfig-devel
+          python3 build_3rdparty.py --src-dir src --install-dir /host/install --build-dir build
+
+      - name: Setup vcpkg (Windows)
+        if: runner.os == 'Windows'
+        uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgDirectory: ${{ github.workspace }}/vcpkg
+          vcpkgGitCommitId: '81c2aa66e2a229a473da6eb6d29d493a8cf9da7e' # Pin a version
+          packages: 'tcl:x64-windows tk:x64-windows freetype:x64-windows swig:x64-windows'
+
+      - name: Build dependencies (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          powershell ./build_3rdparty_windows.ps1 -SrcDir src -InstallDir install -BuildDir build
+        env:
+          VCPKG_ROOT: ${{ github.workspace }}/vcpkg
+
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.16.5
         env:
-          # Install dependencies and build OCCT first
+          # Linux Configuration
           CIBW_BEFORE_ALL_LINUX: >
             yum install -y wget git cmake libX11-devel libXext-devel libXt-devel libXi-devel libXmu-devel mesa-libGL-devel mesa-libGLU-devel pcre2-devel fontconfig-devel &&
             python3 build_3rdparty.py --src-dir src --install-dir /host/install --build-dir build
-          
-          # Configure CMake to find the OCCT we just built
           CIBW_ENVIRONMENT_LINUX: >
             OCCT_INCLUDE_DIR="/host/install/occt/include/opencascade"
             OCCT_LIBRARY_DIR="/host/install/occt/lib"
             LD_LIBRARY_PATH="/host/install/occt/lib:/host/install/tcltk/lib:/host/install/freetype/lib:$LD_LIBRARY_PATH"
             SKBUILD_CMAKE_DEFINE="OCCT_INCLUDE_DIR=/host/install/occt/include/opencascade;OCCT_LIBRARY_DIR=/host/install/occt/lib;SWIG_EXECUTABLE=/host/install/swig/bin/swig"
-
-          # Build for Python 3.10-3.13
-          CIBW_BUILD: cp310-manylinux_x86_64 cp311-manylinux_x86_64 cp312-manylinux_x86_64 cp313-manylinux_x86_64
-          
-          # Repair wheels using auditwheel, ensuring OCCT libs are bundled
           CIBW_REPAIR_WHEEL_COMMAND_LINUX: "export LD_LIBRARY_PATH=/host/install/occt/lib:/host/install/tcltk/lib:/host/install/freetype/lib:$LD_LIBRARY_PATH && auditwheel repair -w {dest_dir} {wheel}"
+
+          # Windows Configuration
+          CIBW_ENVIRONMENT_WINDOWS: >
+            OCCT_INCLUDE_DIR="install/occt/include/opencascade"
+            OCCT_LIBRARY_DIR="install/occt/lib"
+            SKBUILD_CMAKE_DEFINE="OCCT_INCLUDE_DIR=install/occt/include/opencascade;OCCT_LIBRARY_DIR=install/occt/lib"
+          CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: "delvewheel repair -w {dest_dir} {wheel} --add-path install/occt/bin"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: wheels
+          name: wheels-${{ matrix.os }}
           path: ./wheelhouse/*.whl
 
   deploy:
@@ -61,10 +82,16 @@ jobs:
           ref: manylinux_2_28_x86_64
           path: deploy_branch
 
-      - name: Download Artifacts
+      - name: Download Artifacts (Linux)
         uses: actions/download-artifact@v4
         with:
-          name: wheels
+          name: wheels-ubuntu-latest
+          path: new_wheels
+
+      - name: Download Artifacts (Windows)
+        uses: actions/download-artifact@v4
+        with:
+          name: wheels-windows-latest
           path: new_wheels
 
       - name: Update Wheels and Index
