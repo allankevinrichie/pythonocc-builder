@@ -177,8 +177,7 @@ def repair_wheel(wheel_path, plat_tag, output_dir, venv_path, occt_lib_path):
         "-m", "auditwheel", "repair",
         str(wheel_path),
         "--plat", plat_tag,
-        "-w", str(output_dir),
-        "--patchelf-args", "--page-size 65536"
+        "-w", str(output_dir)
     ]
     
     run_command(auditwheel_cmd, env=env)
