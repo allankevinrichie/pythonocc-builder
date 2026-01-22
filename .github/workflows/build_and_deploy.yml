@@ -10,48 +10,46 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
-    container:
-      image: quay.io/pypa/manylinux_2_28_x86_64:latest
+  build_wheels:
+    name: Build wheels on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
 
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      - name: Install System Dependencies
-        run: |
-          yum install -y wget git cmake libX11-devel libXext-devel libXt-devel libXi-devel libXmu-devel mesa-libGL-devel mesa-libGLU-devel pcre2-devel fontconfig-devel
-          # Ensure patchelf is installed (auditwheel needs it)
-          yum install -y patchelf
-
-      - name: Install uv
-        run: |
-          curl -LsSf https://astral.sh/uv/install.sh | sh
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
-
-      - name: Build Wheels
-        run: |
-          # ... (previous setup)
-          export PATH=/opt/python/cp311-cp311/bin:$PATH
+      - name: Build wheels
+        uses: pypa/cibuildwheel@v2.16.5
+        env:
+          # Install dependencies and build OCCT first
+          CIBW_BEFORE_ALL_LINUX: >
+            yum install -y wget git cmake libX11-devel libXext-devel libXt-devel libXi-devel libXmu-devel mesa-libGL-devel mesa-libGLU-devel pcre2-devel fontconfig-devel &&
+            python3 build_3rdparty.py --src-dir src --install-dir /host/install --build-dir build
           
-          # QUICK TEST: Verify Python detection logic before running full build
-          echo "=== Running Quick Python Detection Test ==="
-          # Test with Python 3.10 (which failed previously)
-          /opt/python/cp310-cp310/bin/python3 check_cmake_python.py
-          echo "==========================================="
-          
-          python3 build_wheels.py --py-versions 3.10 3.11 3.12 3.13 --plat-tag manylinux_2_28_x86_64
+          # Configure CMake to find the OCCT we just built
+          CIBW_ENVIRONMENT_LINUX: >
+            OCCT_INCLUDE_DIR="/host/install/occt/include/opencascade"
+            OCCT_LIBRARY_DIR="/host/install/occt/lib"
+            LD_LIBRARY_PATH="/host/install/occt/lib:/host/install/tcltk/lib:/host/install/freetype/lib:$LD_LIBRARY_PATH"
+            SKBUILD_CMAKE_DEFINE="OCCT_INCLUDE_DIR=/host/install/occt/include/opencascade;OCCT_LIBRARY_DIR=/host/install/occt/lib;SWIG_EXECUTABLE=/host/install/swig/bin/swig"
 
-      - name: Upload Artifacts
-        uses: actions/upload-artifact@v4
+          # Build for Python 3.10-3.13
+          CIBW_BUILD: cp310-manylinux_x86_64 cp311-manylinux_x86_64 cp312-manylinux_x86_64 cp313-manylinux_x86_64
+          
+          # Repair wheels using auditwheel, ensuring OCCT libs are bundled
+          CIBW_REPAIR_WHEEL_COMMAND_LINUX: "export LD_LIBRARY_PATH=/host/install/occt/lib:/host/install/tcltk/lib:/host/install/freetype/lib:$LD_LIBRARY_PATH && auditwheel repair -w {dest_dir} {wheel}"
+
+      - uses: actions/upload-artifact@v4
         with:
           name: wheels
-          path: wheels/*.whl
+          path: ./wheelhouse/*.whl
 
   deploy:
-    needs: build
+    needs: build_wheels
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -105,6 +103,6 @@ jobs:
           if git diff --staged --quiet; then
             echo "No changes to commit."
           else
-            git commit -m "Auto-deploy wheels from build ${{ github.run_number }}"
+            git commit -m "Auto-deploy wheels from build ${{ github.run_number }} (cibuildwheel)"
             git push origin manylinux_2_28_x86_64
           fi

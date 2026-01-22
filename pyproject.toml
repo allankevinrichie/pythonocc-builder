@@ -1,0 +1,37 @@
+[build-system]
+requires = ["scikit-build-core", "swig>=4.2.1", "numpy"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "pythonocc-core"
+version = "7.9.0"
+description = "python binding for OpenCASCADE 7.9.0"
+readme = "README.md"
+authors = [
+  { name = "Thomas Paviot", email = "tpaviot@gmail.com" },
+]
+license = { file = "LICENSE" }
+requires-python = ">=3.10"
+dependencies = [
+    "six",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/tpaviot/pythonocc-core"
+"Bug Tracker" = "https://github.com/tpaviot/pythonocc-core/issues"
+
+[tool.scikit-build]
+cmake.version = ">=3.18"
+wheel.packages = []  # Don't package source files automatically, let CMake install handle it
+# Use current directory as source
+cmake.source-dir = "src/pythonocc-core"
+
+# Pass arguments to CMake
+[tool.scikit-build.cmake.define]
+# We will set these dynamically in cibuildwheel config using environment variables
+# OCCT_INCLUDE_DIR = "..."
+# OCCT_LIBRARY_DIR = "..."
+# PYTHONOCC_INSTALL_DIRECTORY = "site-packages/OCC" # scikit-build-core handles installation location
+
+# Disable experimental features if any
+experimental = false
