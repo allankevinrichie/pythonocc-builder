@@ -85,13 +85,17 @@ jobs:
             ls -la /project || true &&
             echo "=== END DEBUG ===" &&
             yum install -y wget git cmake libX11-devel libXext-devel libXt-devel libXi-devel libXmu-devel mesa-libGL-devel mesa-libGLU-devel pcre2-devel fontconfig-devel &&
+            echo "--- Before patching ---" &&
+            cat src/pythonocc-core/CMakeLists.txt | grep "find_package(Python3" &&
             sed -i 's/COMPONENTS Interpreter Development REQUIRED/COMPONENTS Interpreter Development.Module REQUIRED/g' src/pythonocc-core/CMakeLists.txt &&
-            sed -i 's/find_package(Python3 COMPONENTS Interpreter Development NumPy REQUIRED)/find_package(Python3 COMPONENTS Interpreter Development.Module NumPy REQUIRED)/g' src/pythonocc-core/CMakeLists.txt
+            sed -i 's/COMPONENTS Interpreter Development NumPy REQUIRED/COMPONENTS Interpreter Development.Module NumPy REQUIRED/g' src/pythonocc-core/CMakeLists.txt &&
+            echo "--- After patching ---" &&
+            cat src/pythonocc-core/CMakeLists.txt | grep "find_package(Python3"
           CIBW_ENVIRONMENT_LINUX: >
             OCCT_INCLUDE_DIR="/project/install/include/opencascade"
             OCCT_LIBRARY_DIR="/project/install/lib"
             LD_LIBRARY_PATH="/project/install/lib:$LD_LIBRARY_PATH"
-            SKBUILD_CMAKE_DEFINE="OCCT_INCLUDE_DIR=/project/install/include/opencascade;OCCT_LIBRARY_DIR=/project/install/lib;SWIG_EXECUTABLE=/project/install/bin/swig;SWIG_DIR=/project/install/share/swig/4.2.1;FREETYPE_DIR=/project/install;FREETYPE_INCLUDE_DIR_freetype2=/project/install/include/freetype2;FREETYPE_LIBRARY=/project/install/lib/libfreetype.so;PYTHONOCC_MESHDS_NUMPY=ON;Python3_NumPy_INCLUDE_DIR=$(python -c 'import numpy; print(numpy.get_include())')"
+            SKBUILD_CMAKE_DEFINE="OCCT_INCLUDE_DIR=/project/install/include/opencascade;OCCT_LIBRARY_DIR=/project/install/lib;SWIG_EXECUTABLE=/project/install/bin/swig;SWIG_DIR=/project/install/share/swig/4.2.1;FREETYPE_DIR=/project/install;FREETYPE_INCLUDE_DIR_freetype2=/project/install/include/freetype2;FREETYPE_LIBRARY=/project/install/lib/libfreetype.so;PYTHONOCC_MESHDS_NUMPY=ON"
           CIBW_BUILD: cp310-manylinux_x86_64 cp311-manylinux_x86_64 cp312-manylinux_x86_64 cp313-manylinux_x86_64
           CIBW_REPAIR_WHEEL_COMMAND_LINUX: "export LD_LIBRARY_PATH=/project/install/lib:$LD_LIBRARY_PATH && auditwheel repair -w {dest_dir} {wheel}"
 
