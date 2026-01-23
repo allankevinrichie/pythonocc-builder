@@ -22,31 +22,22 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Build dependencies (Linux)
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y wget git cmake libx11-dev libxext-dev libxt-dev libxi-dev libxmu-dev libgl1-mesa-dev libglu1-mesa-dev libpcre2-dev libfontconfig1-dev
-          python3 build_3rdparty.py --src-dir src --install-dir install --build-dir build
-          # Clean build artifacts to avoid cibuildwheel confusion
-          rm -rf build src/pythonocc-core/build src/pythonocc-core/dist src/pythonocc-core/*.egg-info src/pythonocc-core/src/SWIG_files/wrapper/*.so
-
       - name: Build wheels
-        uses: pypa/cibuildwheel@v3.3.1
+        uses: pypa/cibuildwheel@v2.22.0
         env:
           # Linux Configuration
           CIBW_BEFORE_ALL_LINUX: >
             sed -i 's/mirrorlist/#mirrorlist/g' /etc/yum.repos.d/CentOS-* &&
             sed -i 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-* &&
             yum install -y wget git cmake libX11-devel libXext-devel libXt-devel libXi-devel libXmu-devel mesa-libGL-devel mesa-libGLU-devel pcre2-devel fontconfig-devel &&
-            python3 build_3rdparty.py --src-dir src --install-dir install --build-dir build
+            python3 build_3rdparty.py --src-dir src --install-dir /host/install --build-dir build
           CIBW_ENVIRONMENT_LINUX: >
-            OCCT_INCLUDE_DIR="install/occt/include/opencascade"
-            OCCT_LIBRARY_DIR="install/occt/lib"
-            LD_LIBRARY_PATH="install/occt/lib:install/tcltk/lib:install/freetype/lib:$LD_LIBRARY_PATH"
-            SKBUILD_CMAKE_DEFINE="OCCT_INCLUDE_DIR=install/occt/include/opencascade;OCCT_LIBRARY_DIR=install/occt/lib;SWIG_EXECUTABLE=install/swig/bin/swig"
+            OCCT_INCLUDE_DIR="/host/install/occt/include/opencascade"
+            OCCT_LIBRARY_DIR="/host/install/occt/lib"
+            LD_LIBRARY_PATH="/host/install/occt/lib:/host/install/tcltk/lib:/host/install/freetype/lib:$LD_LIBRARY_PATH"
+            SKBUILD_CMAKE_DEFINE="OCCT_INCLUDE_DIR=/host/install/occt/include/opencascade;OCCT_LIBRARY_DIR=/host/install/occt/lib;SWIG_EXECUTABLE=/host/install/swig/bin/swig"
           CIBW_BUILD: cp310-manylinux_x86_64 cp311-manylinux_x86_64 cp312-manylinux_x86_64 cp313-manylinux_x86_64
-          CIBW_REPAIR_WHEEL_COMMAND_LINUX: "export LD_LIBRARY_PATH=install/occt/lib:install/tcltk/lib:install/freetype/lib:$LD_LIBRARY_PATH && auditwheel repair -w {dest_dir} {wheel}"
+          CIBW_REPAIR_WHEEL_COMMAND_LINUX: "export LD_LIBRARY_PATH=/host/install/occt/lib:/host/install/tcltk/lib:/host/install/freetype/lib:$LD_LIBRARY_PATH && auditwheel repair -w {dest_dir} {wheel}"
 
       - uses: actions/upload-artifact@v4
         with:
