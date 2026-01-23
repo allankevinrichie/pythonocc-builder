@@ -28,6 +28,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y wget git cmake libx11-dev libxext-dev libxt-dev libxi-dev libxmu-dev libgl1-mesa-dev libglu1-mesa-dev libpcre2-dev libfontconfig1-dev
           python3 build_3rdparty.py --src-dir src --install-dir install --build-dir build
+          # Clean build artifacts to avoid cibuildwheel confusion
+          rm -rf build src/pythonocc-core/build src/pythonocc-core/dist src/pythonocc-core/*.egg-info src/pythonocc-core/src/SWIG_files/wrapper/*.so
 
       - name: Build wheels
         uses: pypa/cibuildwheel@v3.3.1
