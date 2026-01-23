@@ -34,6 +34,8 @@ jobs:
         env:
           # Linux Configuration
           CIBW_BEFORE_ALL_LINUX: >
+            sed -i 's/mirrorlist/#mirrorlist/g' /etc/yum.repos.d/CentOS-* &&
+            sed -i 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-* &&
             yum install -y wget git cmake libX11-devel libXext-devel libXt-devel libXi-devel libXmu-devel mesa-libGL-devel mesa-libGLU-devel pcre2-devel fontconfig-devel &&
             python3 build_3rdparty.py --src-dir src --install-dir install --build-dir build
           CIBW_ENVIRONMENT_LINUX: >
