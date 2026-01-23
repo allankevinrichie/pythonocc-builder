@@ -15,7 +15,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-latest]
 
     steps:
       - uses: actions/checkout@v4
@@ -28,21 +28,6 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y wget git cmake libx11-dev libxext-dev libxt-dev libxi-dev libxmu-dev libgl1-mesa-dev libglu1-mesa-dev libpcre2-dev libfontconfig1-dev
           python3 build_3rdparty.py --src-dir src --install-dir install --build-dir build
-
-      - name: Setup vcpkg (Windows)
-        if: runner.os == 'Windows'
-        uses: lukka/run-vcpkg@v11
-        with:
-          vcpkgDirectory: ${{ github.workspace }}/vcpkg
-          vcpkgGitCommitId: '66c0373dc7fca549e5803087b9487edfe3aca0a1'
-          packages: 'tcl:x64-windows tk:x64-windows freetype:x64-windows swig:x64-windows'
-
-      - name: Build dependencies (Windows)
-        if: runner.os == 'Windows'
-        run: |
-          powershell ./build_3rdparty_windows.ps1 -SrcDir src -InstallDir install -BuildDir build
-        env:
-          VCPKG_ROOT: ${{ github.workspace }}/vcpkg
 
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.16.5
@@ -57,13 +42,6 @@ jobs:
             LD_LIBRARY_PATH="install/occt/lib:install/tcltk/lib:install/freetype/lib:$LD_LIBRARY_PATH"
             SKBUILD_CMAKE_DEFINE="OCCT_INCLUDE_DIR=install/occt/include/opencascade;OCCT_LIBRARY_DIR=install/occt/lib;SWIG_EXECUTABLE=install/swig/bin/swig"
           CIBW_REPAIR_WHEEL_COMMAND_LINUX: "export LD_LIBRARY_PATH=install/occt/lib:install/tcltk/lib:install/freetype/lib:$LD_LIBRARY_PATH && auditwheel repair -w {dest_dir} {wheel}"
-
-          # Windows Configuration
-          CIBW_ENVIRONMENT_WINDOWS: >
-            OCCT_INCLUDE_DIR="install/occt/include/opencascade"
-            OCCT_LIBRARY_DIR="install/occt/lib"
-            SKBUILD_CMAKE_DEFINE="OCCT_INCLUDE_DIR=install/occt/include/opencascade;OCCT_LIBRARY_DIR=install/occt/lib"
-          CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: "delvewheel repair -w {dest_dir} {wheel} --add-path install/occt/bin"
 
       - uses: actions/upload-artifact@v4
         with:
@@ -87,12 +65,6 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: wheels-ubuntu-latest
-          path: new_wheels
-
-      - name: Download Artifacts (Windows)
-        uses: actions/download-artifact@v4
-        with:
-          name: wheels-windows-latest
           path: new_wheels
 
       - name: Update Wheels and Index
