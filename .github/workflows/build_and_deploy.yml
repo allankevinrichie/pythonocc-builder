@@ -75,7 +75,10 @@ jobs:
           # Linux Configuration
           # Mount current dir (containing 'install') to /host in the container
           # This matches the path used during dependency build
-          CIBW_CONTAINER_OPTIONS: "-v ${{ github.workspace }}:/host"
+          # Note: In GitHub Actions, $(pwd) or ${{ github.workspace }} maps to the workspace root.
+          # We need to ensure we mount the directory where 'install' artifact was downloaded.
+          # Since cibuildwheel runs from the project root, mounting $(pwd) should work.
+          CIBW_CONTAINER_OPTIONS: "-v $(pwd):/host"
           CIBW_BEFORE_ALL_LINUX: >
             ls -la /host/install/bin/swig &&
             /host/install/bin/swig -version &&
