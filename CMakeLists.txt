@@ -14,6 +14,7 @@ ExternalProject_Add(freetype
         -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
         -DCMAKE_BUILD_TYPE=Release
         -DBUILD_SHARED_LIBS=ON
+        -DCMAKE_POLICY_VERSION_MINIMUM=3.5
     INSTALL_DIR ${INSTALL_DIR}
 )
 
