@@ -33,5 +33,8 @@ cmake.source-dir = "src/pythonocc-core"
 # OCCT_LIBRARY_DIR = "..."
 # PYTHONOCC_INSTALL_DIRECTORY = "site-packages/OCC" # scikit-build-core handles installation location
 
+# Fix CMake FindPython3 on manylinux
+Python3_FIND_STRATEGY = "LOCATION"
+
 # Disable experimental features if any
 experimental = false
