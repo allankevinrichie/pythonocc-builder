@@ -80,8 +80,13 @@ jobs:
           # Since cibuildwheel runs from the project root, mounting $(pwd) should work.
           CIBW_CONTAINER_OPTIONS: "-v $(pwd):/host"
           CIBW_BEFORE_ALL_LINUX: >
-            ls -la /host/install/bin/swig &&
-            /host/install/bin/swig -version &&
+            echo "=== DEBUG INFO ===" &&
+            pwd &&
+            ls -la / || true &&
+            ls -la /host || true &&
+            ls -la /host/install || true &&
+            ls -la /project || true &&
+            echo "=== END DEBUG ===" &&
             yum install -y wget git cmake libX11-devel libXext-devel libXt-devel libXi-devel libXmu-devel mesa-libGL-devel mesa-libGLU-devel pcre2-devel fontconfig-devel &&
             sed -i 's/COMPONENTS Interpreter Development REQUIRED/COMPONENTS Interpreter Development.Module REQUIRED/g' src/pythonocc-core/CMakeLists.txt
             # Dependencies are already in /host/install (mounted via CIBW_CONTAINER_OPTIONS)
