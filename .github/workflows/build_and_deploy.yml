@@ -30,7 +30,7 @@ jobs:
           python3 build_3rdparty.py --src-dir src --install-dir install --build-dir build
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.16.5
+        uses: pypa/cibuildwheel@v2.22.0
         env:
           # Linux Configuration
           CIBW_BEFORE_ALL_LINUX: >
