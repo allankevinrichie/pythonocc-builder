@@ -84,7 +84,7 @@ jobs:
             ls -la /host/install || true &&
             ls -la /project || true &&
             echo "=== END DEBUG ===" &&
-            yum install -y wget git cmake libX11-devel libXext-devel libXt-devel libXi-devel libXmu-devel mesa-libGL-devel mesa-libGLU-devel pcre2-devel fontconfig-devel &&
+            yum install -y wget git cmake libX11-devel libXext-devel libXt-devel libXi-devel libXmu-devel mesa-libGL-devel mesa-libGLU-devel pcre2-devel fontconfig-devel rapidjson-devel &&
             echo "--- Before patching ---" &&
             cat src/pythonocc-core/CMakeLists.txt | grep "find_package(Python3" &&
             sed -i 's/COMPONENTS Interpreter Development REQUIRED/COMPONENTS Interpreter Development.Module REQUIRED/g' src/pythonocc-core/CMakeLists.txt &&
