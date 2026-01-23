@@ -23,7 +23,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: install
-          key: linux-deps-v2-${{ hashFiles('CMakeLists.txt') }}
+          key: linux-deps-v3-${{ hashFiles('CMakeLists.txt', 'pyproject.toml', 'src/pythonocc-core/CMakeLists.txt') }}
 
       - name: Build dependencies
         if: steps.cache-deps.outputs.cache-hit != 'true'
@@ -73,10 +73,13 @@ jobs:
         uses: pypa/cibuildwheel@v3.3.1
         env:
           # Linux Configuration
+          # Mount current dir (containing 'install') to /host in the container
+          # This matches the path used during dependency build
+          CIBW_CONTAINER_OPTIONS: "-v ${{ github.workspace }}:/host"
           CIBW_BEFORE_ALL_LINUX: >
             yum install -y wget git cmake libX11-devel libXext-devel libXt-devel libXi-devel libXmu-devel mesa-libGL-devel mesa-libGLU-devel pcre2-devel fontconfig-devel &&
             sed -i 's/COMPONENTS Interpreter Development REQUIRED/COMPONENTS Interpreter Development.Module REQUIRED/g' src/pythonocc-core/CMakeLists.txt
-            # Dependencies are already in /host/install (mounted from current dir 'install')
+            # Dependencies are already in /host/install (mounted via CIBW_CONTAINER_OPTIONS)
           CIBW_ENVIRONMENT_LINUX: >
             OCCT_INCLUDE_DIR="/host/install/include/opencascade"
             OCCT_LIBRARY_DIR="/host/install/lib"
