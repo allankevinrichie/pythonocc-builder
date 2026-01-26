@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  build_deps:
+  build_deps_linux:
     name: Build Dependencies (Linux)
     runs-on: ubuntu-latest
     steps:
@@ -47,26 +47,89 @@ jobs:
           path: install
           retention-days: 1
 
-  build_wheels:
-    needs: build_deps
-    name: Build wheels on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest]
-
+  build_deps_windows:
+    name: Build Dependencies (Windows)
+    runs-on: windows-2022
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      - name: Download Dependencies
+      - name: Cache/Restore Dependencies
+        id: cache-deps
+        uses: actions/cache@v4
+        with:
+          path: install
+          key: windows-deps-${{ hashFiles('CMakeLists.txt') }}
+
+      - name: Install Chocolatey Dependencies
+        if: steps.cache-deps.outputs.cache-hit != 'true'
+        run: choco install swig --version=4.2.1 -y
+
+      - name: Install VCPKG Dependencies
+        if: steps.cache-deps.outputs.cache-hit != 'true'
+        run: |
+          vcpkg install freetype:x64-windows tcl:x64-windows tk:x64-windows
+
+      - name: Build OCCT
+        if: steps.cache-deps.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          VCPKG_ROOT="C:/vcpkg/installed/x64-windows"
+          mkdir -p build
+          cmake -S src/occt -B build -G "Visual Studio 17 2022" -A x64 \
+            -DCMAKE_INSTALL_PREFIX="$(pwd)/install" \
+            -DUSE_FREETYPE=ON \
+            -D3RDPARTY_FREETYPE_DIR="$VCPKG_ROOT" \
+            -D3RDPARTY_FREETYPE_INCLUDE_DIR_freetype2="$VCPKG_ROOT/include/freetype2" \
+            -D3RDPARTY_FREETYPE_LIBRARY_DIR="$VCPKG_ROOT/lib" \
+            -D3RDPARTY_FREETYPE_LIBRARY="$VCPKG_ROOT/lib/freetype.lib" \
+            -DUSE_TCL=ON -DUSE_TK=ON \
+            -D3RDPARTY_TCL_DIR="$VCPKG_ROOT" \
+            -D3RDPARTY_TK_DIR="$VCPKG_ROOT" \
+            -D3RDPARTY_TCL_INCLUDE_DIR="$VCPKG_ROOT/include" \
+            -D3RDPARTY_TK_INCLUDE_DIR="$VCPKG_ROOT/include" \
+            -D3RDPARTY_TCL_LIBRARY_DIR="$VCPKG_ROOT/lib" \
+            -D3RDPARTY_TK_LIBRARY_DIR="$VCPKG_ROOT/lib" \
+            -D3RDPARTY_TCL_LIBRARY="$VCPKG_ROOT/lib/tcl86.lib" \
+            -D3RDPARTY_TK_LIBRARY="$VCPKG_ROOT/lib/tk86.lib" \
+            -DBUILD_MODULE_Draw=OFF \
+            -DBUILD_MODULE_Viz=ON \
+            -DBUILD_MODULE_DataExchange=ON \
+            -DBUILD_MODULE_OCAF=ON
+
+          cmake --build build --config Release --target install
+          
+          # Copy dependencies to bin for delvewheel
+          cp "$VCPKG_ROOT/bin/"*.dll install/bin/ || true
+          
+          # Copy dependency Libs and Headers to install dir for wheel building
+          cp "$VCPKG_ROOT/lib/"*.lib install/lib/ || true
+          cp -r "$VCPKG_ROOT/include/"* install/include/ || true
+
+      - name: Upload Dependencies
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-deps
+          path: install
+          retention-days: 1
+
+  build_wheels_linux:
+    needs: build_deps_linux
+    name: Build wheels on Linux
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Download Dependencies (Linux)
         uses: actions/download-artifact@v4
         with:
           name: linux-deps
           path: install
 
-      - name: Fix permissions
+      - name: Fix permissions (Linux)
         run: chmod -R a+rwx install
 
       - name: Clean build artifacts
@@ -95,11 +158,48 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: wheels-${{ matrix.os }}
+          name: wheels-ubuntu-latest
+          path: ./wheelhouse/*.whl
+
+  build_wheels_windows:
+    needs: build_deps_windows
+    name: Build wheels on Windows
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Download Dependencies (Windows)
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-deps
+          path: install
+
+      - name: Build wheels
+        uses: pypa/cibuildwheel@v3.3.1
+        env:
+          CIBW_BUILD: cp312-win_amd64 cp313-win_amd64 cp314-win_amd64
+          CIBW_PRERELEASE_PYTHONS: 1
+          # Windows Configuration
+          CIBW_BEFORE_ALL_WINDOWS: choco install swig --version=4.2.1 -y
+          CIBW_ENVIRONMENT_WINDOWS: >
+            OCCT_INCLUDE_DIR="${{ github.workspace }}\\install\\include\\opencascade"
+            OCCT_LIBRARY_DIR="${{ github.workspace }}\\install\\lib"
+            SWIG_EXECUTABLE="C:\\ProgramData\\chocolatey\\bin\\swig.exe"
+            SKBUILD_CMAKE_DEFINE="OCCT_INCLUDE_DIR=${{ github.workspace }}/install/include/opencascade;OCCT_LIBRARY_DIR=${{ github.workspace }}/install/lib;FREETYPE_DIR=${{ github.workspace }}/install;FREETYPE_INCLUDE_DIR_freetype2=${{ github.workspace }}/install/include/freetype2;FREETYPE_LIBRARY=${{ github.workspace }}/install/lib/freetype.lib;PYTHONOCC_MESHDS_NUMPY=ON;PYTHONOCC_INSTALL_DIRECTORY=."
+          CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: "pip install delvewheel && delvewheel repair --add-path ${{ github.workspace }}\\install\\bin -w {dest_dir} {wheel}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheels-windows-2022
           path: ./wheelhouse/*.whl
 
   deploy:
-    needs: build_wheels
+    needs: [build_wheels_linux, build_wheels_windows]
+    if: |
+      always() && 
+      (needs.build_wheels_linux.result == 'success' || needs.build_wheels_windows.result == 'success')
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -112,10 +212,18 @@ jobs:
           path: deploy_branch
 
       - name: Download Artifacts (Linux)
+        if: needs.build_wheels_linux.result == 'success'
         uses: actions/download-artifact@v4
         with:
           name: wheels-ubuntu-latest
-          path: new_wheels
+          path: new_wheels_linux
+
+      - name: Download Artifacts (Windows)
+        if: needs.build_wheels_windows.result == 'success'
+        uses: actions/download-artifact@v4
+        with:
+          name: wheels-windows-2022
+          path: new_wheels_windows
 
       - name: Update Wheels and Index
         run: |
@@ -129,7 +237,13 @@ jobs:
           mkdir -p pythonocc-core
           
           # Move new wheels to pythonocc-core, overwriting existing ones
-          cp ../new_wheels/*.whl pythonocc-core/
+          if [ -d "../new_wheels_linux" ]; then
+            cp ../new_wheels_linux/*.whl pythonocc-core/
+          fi
+          
+          if [ -d "../new_wheels_windows" ]; then
+            cp ../new_wheels_windows/*.whl pythonocc-core/
+          fi
           
           # Generate Index HTML
           echo "<!DOCTYPE html><html><body>" > pythonocc-core/index.html

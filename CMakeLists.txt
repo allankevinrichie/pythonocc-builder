@@ -8,15 +8,21 @@ set(INSTALL_DIR ${CMAKE_BINARY_DIR}/install CACHE PATH "Installation directory")
 set(CMAKE_INSTALL_PREFIX ${INSTALL_DIR})
 
 # 1. FreeType
-ExternalProject_Add(freetype
-    URL ${CMAKE_SOURCE_DIR}/src/3rdparty/freetype-2.13.2.tar.gz
-    CMAKE_ARGS
-        -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
-        -DCMAKE_BUILD_TYPE=Release
-        -DBUILD_SHARED_LIBS=ON
-        -DCMAKE_POLICY_VERSION_MINIMUM=3.5
-    INSTALL_DIR ${INSTALL_DIR}
-)
+if(UNIX)
+    ExternalProject_Add(freetype
+        URL ${CMAKE_SOURCE_DIR}/src/3rdparty/freetype-2.13.2.tar.gz
+        CMAKE_ARGS
+            -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
+            -DCMAKE_BUILD_TYPE=Release
+            -DBUILD_SHARED_LIBS=ON
+            -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+        INSTALL_DIR ${INSTALL_DIR}
+    )
+    set(OCCT_DEPENDS freetype)
+else()
+    # Windows uses vcpkg, so we don't build freetype here
+    set(OCCT_DEPENDS "")
+endif()
 
 # 2. Tcl/Tk (Unix only for now, Windows uses vcpkg)
 if(UNIX)
@@ -53,7 +59,7 @@ if(UNIX)
 else()
     # Windows assumes vcpkg or pre-installed
     set(OCCT_TCL_ARGS "")
-    set(OCCT_DEPENDS freetype)
+    # OCCT_DEPENDS is already initialized above
 endif()
 
 # 3. SWIG (Unix only, Windows uses vcpkg)
