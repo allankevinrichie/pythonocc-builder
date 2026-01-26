@@ -69,6 +69,9 @@ jobs:
       - name: Fix permissions
         run: chmod -R a+rwx install
 
+      - name: Clean build artifacts
+        run: rm -rf build src/pythonocc-core/build src/pythonocc-core/dist src/pythonocc-core/*.egg-info src/pythonocc-core/src/SWIG_files/wrapper/*.so
+
       - name: Build wheels
         uses: pypa/cibuildwheel@v3.3.1
         env:
