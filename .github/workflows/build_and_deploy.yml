@@ -64,7 +64,7 @@ jobs:
 
       - name: Install Chocolatey Dependencies
         if: steps.cache-deps.outputs.cache-hit != 'true'
-        run: choco install swig --version=4.2.1 -y
+        run: choco install swig --version=4.2.1 -y --allow-downgrade --force
 
       - name: Install VCPKG Dependencies
         if: steps.cache-deps.outputs.cache-hit != 'true'
@@ -182,7 +182,7 @@ jobs:
           CIBW_BUILD: cp312-win_amd64 cp313-win_amd64 cp314-win_amd64
           CIBW_PRERELEASE_PYTHONS: 1
           # Windows Configuration
-          CIBW_BEFORE_ALL_WINDOWS: choco install swig --version=4.2.1 -y
+          CIBW_BEFORE_ALL_WINDOWS: choco install swig --version=4.2.1 -y --allow-downgrade --force
           CIBW_ENVIRONMENT_WINDOWS: >
             OCCT_INCLUDE_DIR="${{ github.workspace }}\\install\\include\\opencascade"
             OCCT_LIBRARY_DIR="${{ github.workspace }}\\install\\lib"
