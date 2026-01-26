@@ -64,41 +64,39 @@ jobs:
 
       - name: Install Chocolatey Dependencies
         if: steps.cache-deps.outputs.cache-hit != 'true'
-        run: choco install swig --version=4.2.1 -y --allow-downgrade --force
+        run: |
+          choco install swig --version=4.2.1 -y --allow-downgrade --force
+          choco install magicsplat-tcl-tk -y
 
       - name: Install VCPKG Dependencies
         if: steps.cache-deps.outputs.cache-hit != 'true'
         run: |
-          vcpkg install freetype:x64-windows tcl:x64-windows
+          vcpkg install freetype:x64-windows
 
       - name: Build OCCT
         if: steps.cache-deps.outputs.cache-hit != 'true'
         shell: bash
         run: |
-          VCPKG_ROOT="C:/vcpkg/installed/x64-windows"
-          echo "Listing VCPKG lib directory:"
-          ls -R "$VCPKG_ROOT/lib"
+          VCPKG_ROOT="C:/vcpkg"
           
           mkdir -p build
           cmake -S src/occt -B build -G "Visual Studio 17 2022" -A x64 \
+            -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
+            -DVCPKG_TARGET_TRIPLET=x64-windows \
             -DCMAKE_INSTALL_PREFIX="$(pwd)/install" \
-            -D3RDPARTY_DIR="$VCPKG_ROOT" \
             -DUSE_FREETYPE=ON \
             -DUSE_TCL=ON \
             -DUSE_TK=ON \
-            -DBUILD_MODULE_Draw=OFF \
+            -DBUILD_MODULE_Draw=ON \
             -DBUILD_MODULE_Viz=ON \
             -DBUILD_MODULE_DataExchange=ON \
             -DBUILD_MODULE_OCAF=ON
 
           cmake --build build --config Release --target install
           
-          # Copy dependencies to bin for delvewheel
-          cp "$VCPKG_ROOT/bin/"*.dll install/bin/ || true
-          
-          # Copy dependency Libs and Headers to install dir for wheel building
-          cp "$VCPKG_ROOT/lib/"*.lib install/lib/ || true
-          cp -r "$VCPKG_ROOT/include/"* install/include/ || true
+          # Copy vcpkg installed directory to install/vcpkg_installed for next stage
+          mkdir -p install/vcpkg_installed
+          cp -r "$VCPKG_ROOT/installed/x64-windows" install/vcpkg_installed/
 
       - name: Upload Dependencies
         uses: actions/upload-artifact@v4
@@ -169,19 +167,32 @@ jobs:
           name: windows-deps
           path: install
 
+      - name: Setup Windows Environment
+        shell: bash
+        run: |
+          # Restore vcpkg state
+          # Ensure destination exists
+          mkdir -p "C:/vcpkg/installed"
+          # Copy x64-windows from artifact to vcpkg
+          cp -r install/vcpkg_installed/x64-windows "C:/vcpkg/installed/"
+          
+          # Install dependencies
+          choco install swig --version=4.2.1 -y --allow-downgrade --force
+          choco install magicsplat-tcl-tk -y
+
       - name: Build wheels
         uses: pypa/cibuildwheel@v3.3.1
         env:
           CIBW_BUILD: cp312-win_amd64 cp313-win_amd64 cp314-win_amd64
           CIBW_PRERELEASE_PYTHONS: 1
           # Windows Configuration
-          CIBW_BEFORE_ALL_WINDOWS: choco install swig --version=4.2.1 -y --allow-downgrade --force
+          # CIBW_BEFORE_ALL_WINDOWS is not needed as we set up environment in previous step
           CIBW_ENVIRONMENT_WINDOWS: >
             OCCT_INCLUDE_DIR="${{ github.workspace }}\\install\\include\\opencascade"
             OCCT_LIBRARY_DIR="${{ github.workspace }}\\install\\lib"
             SWIG_EXECUTABLE="C:\\ProgramData\\chocolatey\\bin\\swig.exe"
-            SKBUILD_CMAKE_DEFINE="OCCT_INCLUDE_DIR=${{ github.workspace }}/install/include/opencascade;OCCT_LIBRARY_DIR=${{ github.workspace }}/install/lib;PYTHONOCC_MESHDS_NUMPY=ON;PYTHONOCC_INSTALL_DIRECTORY=."
-          CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: "pip install delvewheel && delvewheel repair --add-path ${{ github.workspace }}\\install\\bin -w {dest_dir} {wheel}"
+            SKBUILD_CMAKE_DEFINE="OCCT_INCLUDE_DIR=${{ github.workspace }}/install/include/opencascade;OCCT_LIBRARY_DIR=${{ github.workspace }}/install/lib;PYTHONOCC_MESHDS_NUMPY=ON;PYTHONOCC_INSTALL_DIRECTORY=.;CMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake;VCPKG_TARGET_TRIPLET=x64-windows"
+          CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: "pip install delvewheel && delvewheel repair --add-path C:\\vcpkg\\installed\\x64-windows\\bin -w {dest_dir} {wheel}"
 
       - uses: actions/upload-artifact@v4
         with:
