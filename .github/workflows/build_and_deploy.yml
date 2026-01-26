@@ -69,7 +69,7 @@ jobs:
       - name: Install VCPKG Dependencies
         if: steps.cache-deps.outputs.cache-hit != 'true'
         run: |
-          vcpkg install freetype:x64-windows tcl:x64-windows tk:x64-windows
+          vcpkg install freetype:x64-windows tcl:x64-windows
 
       - name: Build OCCT
         if: steps.cache-deps.outputs.cache-hit != 'true'
@@ -93,7 +93,7 @@ jobs:
             -D3RDPARTY_TK_LIBRARY_DIR="$VCPKG_ROOT/lib" \
             -D3RDPARTY_TCL_LIBRARY="$VCPKG_ROOT/lib/tcl86.lib" \
             -D3RDPARTY_TK_LIBRARY="$VCPKG_ROOT/lib/tk86.lib" \
-            -DBUILD_MODULE_Draw=OFF \
+            -DBUILD_MODULE_Draw=ON \
             -DBUILD_MODULE_Viz=ON \
             -DBUILD_MODULE_DataExchange=ON \
             -DBUILD_MODULE_OCAF=ON
