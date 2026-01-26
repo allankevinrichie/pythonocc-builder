@@ -27,6 +27,7 @@ dependencies = [
 
 [tool.scikit-build]
 cmake.version = ">=3.18"
+wheel.install-dir = "OCC" 
 wheel.packages = []  # Don't package source files automatically, let CMake install handle it
 # Use current directory as source
 cmake.source-dir = "src/pythonocc-core"
@@ -36,7 +37,7 @@ cmake.source-dir = "src/pythonocc-core"
 # We will set these dynamically in cibuildwheel config using environment variables
 # OCCT_INCLUDE_DIR = "..."
 # OCCT_LIBRARY_DIR = "..."
-# PYTHONOCC_INSTALL_DIRECTORY = "site-packages/OCC" # scikit-build-core handles installation location
+PYTHONOCC_INSTALL_DIRECTORY = "." # scikit-build-core handles installation location
 
 # Fix CMake FindPython3 on manylinux
 Python3_FIND_STRATEGY = "LOCATION"
