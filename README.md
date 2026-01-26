@@ -4,26 +4,26 @@ This repository contains an automated build system to compile and package `pytho
 
 ## Features
 
--   **Full Source Build**: Compiles Tcl/Tk, FreeType, SWIG, and OCCT 7.9.0 from source.
--   **Multi-Python Support**: Uses `cibuildwheel` to automatically build wheels for Python 3.10, 3.11, 3.12, and 3.13.
+-   **Full Source Build**: Compiles Tcl/Tk, FreeType, SWIG, and OCCT 7.9.0 from source using CMake `ExternalProject`.
+-   **Multi-Python Support**: Automatically builds wheels for Python 3.12, 3.13, and 3.14 (experimental).
 -   **Self-Contained Wheels**: Uses `auditwheel` to bundle all shared libraries (OCCT, Tcl/Tk, FreeType) into the wheel.
--   **Automated Workflow**: Fully automated GitHub Actions workflow using modern packaging standards (`pyproject.toml`, `scikit-build-core`).
+-   **Automated Workflow**: GitHub Actions workflow using modern packaging standards (`pyproject.toml`, `scikit-build-core`).
 
 ## Repository Structure
 
 -   `src/occt`: OpenCASCADE Technology source code (Git Submodule).
 -   `src/pythonocc-core`: pythonocc-core source code (Git Submodule).
 -   `src/3rdparty/`: Source tarballs for Tcl, Tk, FreeType, and SWIG.
--   `build_3rdparty.py`: Helper script to compile dependencies and OCCT.
+-   `CMakeLists.txt`: Superbuild configuration to compile dependencies and OCCT.
+-   `local_build.sh`: Script to run the build locally using Docker.
 -   `pyproject.toml`: Configuration for the Python package build (scikit-build-core).
 -   `.github/workflows/build_and_deploy.yml`: CI/CD workflow definition.
 
 ## Prerequisites
 
--   Linux (tested on Ubuntu 22.04+ / manylinux_2_28).
--   Python 3.
--   `git`, `cmake`, `make`, `gcc`, `g++`.
--   Docker (for local `cibuildwheel` execution).
+-   Linux (or any OS with Docker).
+-   Docker (required for `cibuildwheel` execution).
+-   Git.
 
 ## Usage
 
@@ -42,33 +42,17 @@ If you already cloned without submodules:
 git submodule update --init --recursive
 ```
 
-### 2. Run the Build (Locally with cibuildwheel)
+### 2. Run the Build (Locally)
 
-You can reproduce the CI build process locally using `cibuildwheel`. This requires Docker.
-
-First, install `cibuildwheel`:
+You can reproduce the CI build process locally using the provided script. This script uses Docker to build dependencies and then runs `cibuildwheel`.
 
 ```bash
-pip install cibuildwheel
+./local_build.sh
 ```
 
-Then, run the build (this will pull the manylinux container and run the build inside it):
-
-```bash
-# Build only for Python 3.10 as an example
-export CIBW_BUILD=cp310-manylinux_x86_64
-
-# Define the setup script (same as in CI)
-export CIBW_BEFORE_ALL_LINUX="yum install -y wget git cmake libX11-devel libXext-devel libXt-devel libXi-devel libXmu-devel mesa-libGL-devel mesa-libGLU-devel pcre2-devel fontconfig-devel && python3 build_3rdparty.py --src-dir src --install-dir /host/install --build-dir build"
-
-# Define environment variables for CMake
-export CIBW_ENVIRONMENT_LINUX='OCCT_INCLUDE_DIR="/host/install/occt/include/opencascade" OCCT_LIBRARY_DIR="/host/install/occt/lib" LD_LIBRARY_PATH="/host/install/occt/lib:/host/install/tcltk/lib:/host/install/freetype/lib:$LD_LIBRARY_PATH" SKBUILD_CMAKE_DEFINE="OCCT_INCLUDE_DIR=/host/install/occt/include/opencascade;OCCT_LIBRARY_DIR=/host/install/occt/lib;SWIG_EXECUTABLE=/host/install/swig/bin/swig"'
-
-# Define repair command
-export CIBW_REPAIR_WHEEL_COMMAND_LINUX="export LD_LIBRARY_PATH=/host/install/occt/lib:/host/install/tcltk/lib:/host/install/freetype/lib:$LD_LIBRARY_PATH && auditwheel repair -w {dest_dir} {wheel}"
-
-cibuildwheel --platform linux
-```
+This will:
+1.  Build dependencies (OCCT, Tcl/Tk, etc.) inside a Docker container (cached in `./install`).
+2.  Run `cibuildwheel` to build and repair wheels for Python 3.12, 3.13, and 3.14.
 
 ### 3. Output
 
@@ -76,7 +60,8 @@ The final, ready-to-use wheels will be placed in the `wheelhouse/` directory.
 
 ```bash
 ls wheelhouse/
-# pythonocc_core-7.9.0-cp310-cp310-manylinux_2_28_x86_64.whl
+# pythonocc_core-7.9.0-cp312-cp312-manylinux_2_28_x86_64.whl
+# pythonocc_core-7.9.0-cp313-cp313-manylinux_2_28_x86_64.whl
 # ...
 ```
 
@@ -85,7 +70,11 @@ ls wheelhouse/
 You can install the generated wheels directly with pip:
 
 ```bash
-pip install wheelhouse/pythonocc_core-7.9.0-cp310-cp310-manylinux_2_28_x86_64.whl
+pip install wheelhouse/pythonocc_core-7.9.0-cp312-cp312-manylinux_2_28_x86_64.whl
 ```
 
 No external system dependencies (like OCCT or Tcl/Tk) are required at runtime.
+
+## CI/CD
+
+The GitHub Actions workflow (`.github/workflows/build_and_deploy.yml`) automatically builds wheels on push to `master` and deploys them to the `manylinux_2_28_x86_64` branch.

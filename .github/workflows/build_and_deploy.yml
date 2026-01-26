@@ -87,8 +87,10 @@ jobs:
             OCCT_INCLUDE_DIR="/project/install/include/opencascade"
             OCCT_LIBRARY_DIR="/project/install/lib"
             LD_LIBRARY_PATH="/project/install/lib:$LD_LIBRARY_PATH"
-            SKBUILD_CMAKE_DEFINE="OCCT_INCLUDE_DIR=/project/install/include/opencascade;OCCT_LIBRARY_DIR=/project/install/lib;SWIG_EXECUTABLE=/project/install/bin/swig;SWIG_DIR=/project/install/share/swig/4.2.1;FREETYPE_DIR=/project/install;FREETYPE_INCLUDE_DIR_freetype2=/project/install/include/freetype2;FREETYPE_LIBRARY=/project/install/lib/libfreetype.so;PYTHONOCC_MESHDS_NUMPY=ON"
-          CIBW_BUILD: cp312-manylinux_x86_64
+            SKBUILD_CMAKE_DEFINE="OCCT_INCLUDE_DIR=/project/install/include/opencascade;OCCT_LIBRARY_DIR=/project/install/lib;SWIG_EXECUTABLE=/project/install/bin/swig;SWIG_DIR=/project/install/share/swig/4.2.1;FREETYPE_DIR=/project/install;FREETYPE_INCLUDE_DIR_freetype2=/project/install/include/freetype2;FREETYPE_LIBRARY=/project/install/lib/libfreetype.so;PYTHONOCC_MESHDS_NUMPY=ON;PYTHONOCC_INSTALL_DIRECTORY=OCC"
+          CIBW_MANYLINUX_X86_64_IMAGE: quay.io/pypa/manylinux_2_28_x86_64:latest
+          CIBW_BUILD: cp312-manylinux_x86_64 cp313-manylinux_x86_64 cp314-manylinux_x86_64
+          CIBW_PRERELEASE_PYTHONS: 1
           CIBW_REPAIR_WHEEL_COMMAND_LINUX: "export LD_LIBRARY_PATH=/project/install/lib:$LD_LIBRARY_PATH && auditwheel repair -w {dest_dir} {wheel}"
 
       - uses: actions/upload-artifact@v4
@@ -119,6 +121,10 @@ jobs:
         run: |
           cd deploy_branch
           
+          # Cleanup legacy files
+          rm -f *.whl
+          rm -f pythonocc-core/*.whl
+
           # Create pythonocc-core dir if not exists
           mkdir -p pythonocc-core
           
