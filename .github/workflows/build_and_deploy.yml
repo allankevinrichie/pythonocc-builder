@@ -76,24 +76,17 @@ jobs:
         shell: bash
         run: |
           VCPKG_ROOT="C:/vcpkg/installed/x64-windows"
+          echo "Listing VCPKG lib directory:"
+          ls -R "$VCPKG_ROOT/lib"
+          
           mkdir -p build
           cmake -S src/occt -B build -G "Visual Studio 17 2022" -A x64 \
             -DCMAKE_INSTALL_PREFIX="$(pwd)/install" \
+            -D3RDPARTY_DIR="$VCPKG_ROOT" \
             -DUSE_FREETYPE=ON \
-            -D3RDPARTY_FREETYPE_DIR="$VCPKG_ROOT" \
-            -D3RDPARTY_FREETYPE_INCLUDE_DIR_freetype2="$VCPKG_ROOT/include/freetype2" \
-            -D3RDPARTY_FREETYPE_LIBRARY_DIR="$VCPKG_ROOT/lib" \
-            -D3RDPARTY_FREETYPE_LIBRARY="$VCPKG_ROOT/lib/freetype.lib" \
-            -DUSE_TCL=ON -DUSE_TK=ON \
-            -D3RDPARTY_TCL_DIR="$VCPKG_ROOT" \
-            -D3RDPARTY_TK_DIR="$VCPKG_ROOT" \
-            -D3RDPARTY_TCL_INCLUDE_DIR="$VCPKG_ROOT/include" \
-            -D3RDPARTY_TK_INCLUDE_DIR="$VCPKG_ROOT/include" \
-            -D3RDPARTY_TCL_LIBRARY_DIR="$VCPKG_ROOT/lib" \
-            -D3RDPARTY_TK_LIBRARY_DIR="$VCPKG_ROOT/lib" \
-            -D3RDPARTY_TCL_LIBRARY="$VCPKG_ROOT/lib/tcl86.lib" \
-            -D3RDPARTY_TK_LIBRARY="$VCPKG_ROOT/lib/tk86.lib" \
-            -DBUILD_MODULE_Draw=ON \
+            -DUSE_TCL=ON \
+            -DUSE_TK=ON \
+            -DBUILD_MODULE_Draw=OFF \
             -DBUILD_MODULE_Viz=ON \
             -DBUILD_MODULE_DataExchange=ON \
             -DBUILD_MODULE_OCAF=ON
@@ -187,7 +180,7 @@ jobs:
             OCCT_INCLUDE_DIR="${{ github.workspace }}\\install\\include\\opencascade"
             OCCT_LIBRARY_DIR="${{ github.workspace }}\\install\\lib"
             SWIG_EXECUTABLE="C:\\ProgramData\\chocolatey\\bin\\swig.exe"
-            SKBUILD_CMAKE_DEFINE="OCCT_INCLUDE_DIR=${{ github.workspace }}/install/include/opencascade;OCCT_LIBRARY_DIR=${{ github.workspace }}/install/lib;FREETYPE_DIR=${{ github.workspace }}/install;FREETYPE_INCLUDE_DIR_freetype2=${{ github.workspace }}/install/include/freetype2;FREETYPE_LIBRARY=${{ github.workspace }}/install/lib/freetype.lib;PYTHONOCC_MESHDS_NUMPY=ON;PYTHONOCC_INSTALL_DIRECTORY=."
+            SKBUILD_CMAKE_DEFINE="OCCT_INCLUDE_DIR=${{ github.workspace }}/install/include/opencascade;OCCT_LIBRARY_DIR=${{ github.workspace }}/install/lib;PYTHONOCC_MESHDS_NUMPY=ON;PYTHONOCC_INSTALL_DIRECTORY=."
           CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: "pip install delvewheel && delvewheel repair --add-path ${{ github.workspace }}\\install\\bin -w {dest_dir} {wheel}"
 
       - uses: actions/upload-artifact@v4
